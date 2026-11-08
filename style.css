@@ -229,7 +229,9 @@ button{border:none; border-radius:11px; padding:11px 18px; font-size:14px; curso
 .detail-body{padding:6px 26px 26px; display:flex; flex-direction:column; gap:9px; position:relative}
 .detail-body h3{font-family:"Playfair Display",serif; font-size:27px; line-height:1.2}
 .detail-label{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); font-weight:700; margin-top:10px}
-.detail-text{font-size:14.5px; line-height:1.65; color:#ddd5c2; white-space:pre-wrap}
+.detail-text{font-size:14.5px; line-height:1.65; color:#ddd5c2; text-align:justify; hyphens:auto}
+.detail-text p{margin:0 0 .75em}
+.detail-text p:last-child{margin-bottom:0}
 .detail-text.empty-text{color:#6f6653; font-style:italic}
 .detail-body .row{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap}
 

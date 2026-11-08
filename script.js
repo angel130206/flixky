@@ -685,6 +685,25 @@ function showToast(msg, type = "info", ms = 3500){
 }
 
 /* ===== Detail film (sinopsis tampil di sini) ===== */
+/* Teks panjang (sinopsis/catatan): baris kosong = paragraf baru,
+   Enter tunggal = baris baru di paragraf yang sama. */
+function renderRichText(el, raw, emptyMsg){
+  const text = (raw || "").trim();
+  if(!text){
+    el.innerHTML = "";
+    const p = document.createElement("p");
+    p.textContent = emptyMsg;
+    el.appendChild(p);
+    el.classList.add("empty-text");
+    return;
+  }
+  el.classList.remove("empty-text");
+  el.innerHTML = text
+    .split(/\n\s*\n/)
+    .map(par => `<p>${esc(par.trim()).replace(/\n/g, "<br />")}</p>`)
+    .join("");
+}
+
 function openDetail(id){
   const m = movies.find(x => x.id === id);
   if(!m) return;
@@ -702,12 +721,8 @@ function openDetail(id){
   $("dDateLabel").style.display = showDate ? "" : "none";
   $("dDate").style.display = showDate ? "" : "none";
   if(showDate) $("dDate").textContent = formatDate(m.watchedDate);
-  const syn = $("dSynopsis");
-  syn.textContent = m.synopsis || t("emptySynopsis");
-  syn.classList.toggle("empty-text", !m.synopsis);
-  const note = $("dNote");
-  note.textContent = m.note || t("emptyNote");
-  note.classList.toggle("empty-text", !m.note);
+  renderRichText($("dSynopsis"), m.synopsis, t("emptySynopsis"));
+  renderRichText($("dNote"), m.note, t("emptyNote"));
   // Tombol cepat ganti status, menyesuaikan status film saat ini
   const row = $("dStatusRow");
   if(m.status === "want"){
