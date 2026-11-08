@@ -50,6 +50,7 @@ const I18N = {
     sortTitle: "Judul A–Z",
     sortYear: "Tahun Terbaru",
     emptyText: "Belum ada film di halaman ini.<br />Tekan tombol + untuk menambahkan.",
+    loadingText: "Memuat koleksimu…",
     chipAll: "Semua",
     filterGenre: "Filter genre",
     filterToggle: "Filter",
@@ -164,6 +165,7 @@ const I18N = {
     sortTitle: "Title A–Z",
     sortYear: "Newest Year",
     emptyText: "No movies on this page yet.<br />Tap the + button to add one.",
+    loadingText: "Loading your collection…",
     chipAll: "All",
     filterGenre: "Genre filter",
     filterToggle: "Filter",
@@ -302,26 +304,34 @@ let FB = null;                // {authM, fsM, auth, db} bila SDK berhasil dimuat
 let currentUser = null;
 let unsubFilms = null;
 let migrationTried = false;   // migrasi lokal -> cloud hanya sekali per sesi login
+let seedCleanupTried = false; // pembersihan data contoh di cloud, sekali per sesi login
 
-function seed(){
-  return [
-    {id:1, title:"Parasite", year:2019, genre:"Thriller", status:"watched", rating:5, poster:"", watchedDate:"",
-     synopsis:"Keluarga Ki-taek yang miskin menyusup satu per satu menjadi pekerja di rumah keluarga Park yang kaya — jadi sopir, guru les, sampai asisten rumah tangga — semuanya dengan kebohongan yang rapi. Tapi satu rahasia di ruang bawah tanah rumah itu mengubah segalanya jadi kacau dan berbahaya.",
-     note:"Contoh data — hapus aja. Plot twist-nya gila."},
-    {id:2, title:"Spider-Man: Across the Spider-Verse", year:2023, genre:"Animasi", status:"watched", rating:5, poster:"", watchedDate:"",
-     synopsis:"Miles Morales terlempar melintasi multiverse dan bertemu tim Spider-Man dari berbagai dimensi. Masalahnya, cara Miles menangani satu peristiwa penting bertabrakan dengan aturan para Spider-Man lain, dan ia harus memilih antara mengikuti aturan atau menyelamatkan orang yang ia sayang.",
-     note:"Contoh data. Visualnya beda dari film animasi lain."},
-    {id:3, title:"Dune: Part Two", year:2024, genre:"Sci-Fi", status:"want", rating:0, poster:"", watchedDate:"",
-     synopsis:"Paul Atreides bersembunyi bersama kaum Fremen di planet gurun Arrakis sambil mempelajari cara hidup mereka dan mengendalikan cacing pasir raksasa. Di tengah perang melawan House Harkonnen, Paul dihadapkan pada pilihan antara cinta dan takdir yang bisa memicu perang suci atas namanya.",
-     note:"Contoh data. Katanya wajib nonton di layar besar."}
-  ];
+/* Gerbang muat awal: bila perangkat ini punya sesi akun (pernah login),
+   jangan tampilkan data lokal dulu — tunggu snapshot cloud pertama supaya
+   tidak ada kedip "data default -> data akun" saat aplikasi dibuka. */
+let cloudPending = false;
+try{ cloudPending = localStorage.getItem("flixky-account") === "1"; }catch(e){}
+setTimeout(() => { if(cloudPending){ cloudPending = false; render(); } }, 4000); // pengaman jaringan lambat
+
+/* Data contoh lama (Parasite dkk.) tidak lagi ditanam di aplikasi.
+   isSeedEntry mengenali entri contoh dari judul + catatan "Contoh data",
+   supaya salinan yang terlanjur tersimpan (lokal maupun cloud) ikut
+   dibersihkan otomatis — film asli pengguna tidak disentuh. */
+const SEED_TITLES = ["Parasite", "Spider-Man: Across the Spider-Verse", "Dune: Part Two"];
+function isSeedEntry(m){
+  return !!m && SEED_TITLES.includes(m.title) && typeof m.note === "string" && m.note.includes("Contoh data");
 }
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
-    if(raw) return JSON.parse(raw);
+    if(raw){
+      const list = JSON.parse(raw);
+      const clean = list.filter(m => !isSeedEntry(m));
+      if(clean.length !== list.length) localStorage.setItem(KEY, JSON.stringify(clean));
+      return clean;
+    }
   }catch(e){}
-  return seed();
+  return [];
 }
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(localMovies)); }catch(e){}
@@ -501,6 +511,24 @@ function render(){
     renderAccount();
     return;
   }
+  // Gerbang muat awal: sesi akun terdeteksi -> tampilkan status memuat,
+  // bukan data lokal, sampai snapshot cloud pertama tiba.
+  if(cloudPending){
+    $("accountView").style.display = "none";
+    $("toolbar").style.display = "";
+    $("statusChips").style.display = page === "history" ? "" : "none";
+    $("grid").style.display = "";
+    $("grid").innerHTML = "";
+    $("fab").style.display = "";
+    $("pageTitle").textContent = t(PAGES[page].titleKey);
+    $("stats").style.display = page === "home" ? "flex" : "none";
+    ["stTotal","stWatched","stWatching","stWant","stAvg"].forEach(id => $(id).textContent = "–");
+    $("empty").style.display = "block";
+    $("emptyDefault").style.display = "none";
+    $("emptyFilter").style.display = "none";
+    $("emptyLoading").style.display = "";
+    return;
+  }
   $("accountView").style.display = "none";
   $("toolbar").style.display = "";
   $("grid").style.display = "";
@@ -549,6 +577,7 @@ function render(){
     (page === "history" && historyChip !== "all");
   $("empty").style.display = list.length ? "none" : "block";
   if(!list.length){
+    $("emptyLoading").style.display = "none";
     $("emptyDefault").style.display = filtersActive ? "none" : "";
     $("emptyFilter").style.display = filtersActive ? "" : "none";
   }
@@ -1004,10 +1033,23 @@ function subscribeFilms(uid){
       return;
     }
     migrationTried = true;
-    movies = snap.docs.map(d => ({...d.data(), id: Number(d.id)}));
+    // Bersihkan data contoh yang terlanjur tersimpan di cloud (sekali per sesi login)
+    if(!seedCleanupTried){
+      seedCleanupTried = true;
+      const seedDocs = snap.docs.filter(d => isSeedEntry(d.data()));
+      if(seedDocs.length){
+        const batch = FB.fsM.writeBatch(FB.db);
+        seedDocs.forEach(d => batch.delete(d.ref));
+        batch.commit().catch(e => console.error("Gagal membersihkan data contoh di cloud:", e));
+      }
+    }
+    movies = snap.docs.map(d => ({...d.data(), id: Number(d.id)})).filter(m => !isSeedEntry(m));
+    cloudPending = false;
     render();
   }, err => {
     console.error("Gagal menyinkronkan data dari cloud:", err);
+    cloudPending = false;
+    render();
   });
 }
 async function uploadLocal(uid){
@@ -1027,12 +1069,16 @@ function watchAuth(){
   FB.authM.onAuthStateChanged(FB.auth, user => {
     currentUser = user;
     if(user){
+      try{ localStorage.setItem("flixky-account", "1"); }catch(e){}
       localMovies = movies; // tangkap data lokal terakhir sebelum beralih ke cloud
       renderAccount();
       subscribeFilms(user.uid);
     } else {
+      try{ localStorage.removeItem("flixky-account"); }catch(e){}
+      cloudPending = false;
       if(unsubFilms){ unsubFilms(); unsubFilms = null; }
       migrationTried = false;
+      seedCleanupTried = false;
       movies = localMovies;
       renderAccount();
       render();
@@ -1058,6 +1104,8 @@ async function initFirebase(){
   }catch(e){
     console.warn("Firebase tidak dapat dimuat — Flixky berjalan dalam mode lokal.", e);
     FB = null;
+    cloudPending = false;
+    render();
   }
 }
 
