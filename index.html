@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flixky — Catatan Filmku</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#0d0b08" />
+    <link rel="icon" type="image/png" href="icon-192.png" />
+    <link rel="apple-touch-icon" href="icon-180.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Flixky" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script>
+      /* Terapkan tema tersimpan sedini mungkin supaya tidak ada kedip tema saat memuat */
+      try {
+        if (localStorage.getItem("flixky-theme") === "light")
+          document.documentElement.setAttribute("data-theme", "light");
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div class="glow"></div>
+    <div class="wrap">
+      <header>
+        <div>
+          <div class="kicker" data-i18n="kicker">KOLEKSI PRIBADI</div>
+          <h1>Flixky</h1>
+          <p class="sub" data-i18n="headerSub">
+            Catatan film yang pernah kutonton — dan yang masih menunggu giliran.
+          </p>
+        </div>
+      </header>
+
+      <div class="stats" id="stats">
+        <div class="stat"><b id="stTotal">0</b><small data-i18n="statTotal">Total Film</small></div>
+        <div class="stat">
+          <b id="stWatched">0</b><small data-i18n="statWatched">Sudah Ditonton</small>
+        </div>
+        <div class="stat">
+          <b id="stWatching">0</b><small data-i18n="statWatching">Sedang Ditonton</small>
+        </div>
+        <div class="stat"><b id="stWant">0</b><small data-i18n="statWant">Mau Ditonton</small></div>
+        <div class="stat">
+          <b id="stAvg">–</b><small data-i18n="statAvg">Rata-rata Rating</small>
+        </div>
+      </div>
+
+      <h2 class="page-title" id="pageTitle">Beranda</h2>
+
+      <div class="toolbar" id="toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="search" placeholder="Cari judul / genre..." data-i18n-ph="searchPh" />
+        </div>
+        <button type="button" class="btn-filter" id="btnFilter">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
+          <span data-i18n="filterToggle">Filter</span>
+          <span class="filter-dot" id="filterDot" style="display: none"></span>
+        </button>
+        <div class="filter-panel" id="filterPanel">
+          <select id="sort">
+            <option value="new" data-i18n="sortNew">Terbaru Ditambah</option>
+            <option value="rating" data-i18n="sortRating">Rating Tertinggi</option>
+            <option value="title" data-i18n="sortTitle">Judul A–Z</option>
+            <option value="year" data-i18n="sortYear">Tahun Terbaru</option>
+          </select>
+          <select id="filterGenre"></select>
+          <select id="filterRating">
+            <option value="0" data-i18n="filterAllRatings">Semua Rating</option>
+            <option value="5" data-i18n="filterRating5">★5</option>
+            <option value="4" data-i18n="filterRating4">★4 ke atas</option>
+            <option value="3" data-i18n="filterRating3">★3 ke atas</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Chips status: hanya tampil di halaman Riwayat -->
+      <div class="chip-row" id="statusChips" style="display: none">
+        <button type="button" class="chip active" data-chip="all" data-i18n="chipAll">Semua</button>
+        <button type="button" class="chip" data-chip="watched" data-i18n="status_watched">Sudah Ditonton</button>
+        <button type="button" class="chip" data-chip="watching" data-i18n="status_watching">Sedang Ditonton</button>
+        <button type="button" class="chip" data-chip="want" data-i18n="status_want">Mau Ditonton</button>
+      </div>
+
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="empty" style="display: none">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>
+        </div>
+        <div id="emptyDefault">
+          <span data-i18n-html="emptyText">Belum ada film di halaman ini.<br />Tekan tombol + untuk menambahkan.</span>
+        </div>
+        <div id="emptyFilter" style="display: none">
+          <span data-i18n="emptyFilterText">Tidak ada film yang cocok dengan filter saat ini.</span>
+          <div class="empty-actions">
+            <button type="button" class="btn-ghost" id="btnResetFilters" data-i18n="resetFilters">Reset Filter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Halaman Akun -->
+      <div id="accountView" style="display: none">
+        <!-- Profil & akun -->
+        <section class="acct-card">
+          <h3 class="acct-card-title" data-i18n="acctProfileTitle">Profil &amp; Akun</h3>
+          <div id="acctLoggedIn" style="display: none">
+            <div class="acct-profile">
+              <img id="acctPhoto" alt="Foto profil" />
+              <div class="acct-profile-info">
+                <div class="acct-name" id="acctName"></div>
+                <div class="acct-email" id="acctEmail"></div>
+                <div><span class="status-pill" id="acctStatus"></span></div>
+              </div>
+            </div>
+            <button class="btn-ghost btn-with-icon" id="btnLogoutAcct">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+              <span data-i18n="logoutBtn">Logout</span>
+            </button>
+          </div>
+          <div id="acctLoggedOut">
+            <p class="acct-text" data-i18n="acctLocalText">
+              Kamu belum login. Data film tersimpan lokal di perangkat ini saja — login dengan Google supaya tersinkron ke cloud dan tetap aman kalau kamu ganti perangkat.
+            </p>
+            <button class="btn-ghost btn-login" id="btnLoginAcct">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.2H12v4.3h6.5c-.1 1.1-.8 2.7-2.4 3.8l3.7 2.9c2.2-2.1 3.7-5.2 3.7-10Z"/><path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.7-2.9c-1 .7-2.4 1.2-4.2 1.2-3.2 0-5.9-2.1-6.8-5.1L1.3 17.2C3.3 21.2 7.3 24 12 24Z"/><path fill="#FBBC05" d="M5.2 14.3c-.2-.7-.4-1.5-.4-2.3s.1-1.6.4-2.3L1.3 6.8C.5 8.4 0 10.1 0 12s.5 3.6 1.3 5.2l3.9-2.9Z"/><path fill="#EA4335" d="M12 4.7c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.9 1.1 15.2 0 12 0 7.3 0 3.3 2.8 1.3 6.8l3.9 2.9C6.1 6.8 8.8 4.7 12 4.7Z"/></svg>
+              <span data-i18n="loginGoogle">Login dengan Google</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Pencadangan: ekspor / impor JSON + reset -->
+        <section class="acct-card">
+          <h3 class="acct-card-title" data-i18n="acctBackupTitle">Pencadangan</h3>
+          <p class="acct-text" data-i18n="acctBackupText">
+            Ekspor koleksimu ke file JSON sebagai cadangan, atau impor dari file hasil ekspor sebelumnya.
+          </p>
+          <div class="acct-actions">
+            <button class="acct-action" id="btnExport">
+              <span class="a-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="m8 10 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>
+              <span class="a-label" data-i18n="exportBtn">Ekspor JSON</span>
+              <span class="a-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></span>
+            </button>
+            <button class="acct-action" id="btnImport">
+              <span class="a-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 14V3"/><path d="m8 7 4-4 4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>
+              <span class="a-label" data-i18n="importBtn">Impor JSON</span>
+              <span class="a-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></span>
+            </button>
+            <input type="file" id="importFile" accept=".json,application/json" style="display: none" />
+          </div>
+          <button class="btn-reset-small" id="btnReset" data-i18n="resetBtn">Reset semua data</button>
+        </section>
+
+        <!-- Pengaturan -->
+        <section class="acct-card">
+          <h3 class="acct-card-title" data-i18n="acctSettingsTitle">Pengaturan</h3>
+          <div class="set-row">
+            <span class="set-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z"/></svg></span>
+            <span class="set-label" data-i18n="language">Bahasa</span>
+            <div class="seg-control seg-sm" id="langSeg">
+              <button type="button" data-lang="id">Bahasa Indonesia</button>
+              <button type="button" data-lang="en">English</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span class="set-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></span>
+            <span class="set-label" data-i18n="setTheme">Tema</span>
+            <div class="seg-control seg-sm" id="themeSeg">
+              <button type="button" data-theme-val="dark" data-i18n="themeDark">Gelap</button>
+              <button type="button" data-theme-val="light" data-i18n="themeLight">Terang</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span class="set-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg></span>
+            <span class="set-label" data-i18n="setDensity">Tampilan daftar</span>
+            <div class="seg-control seg-sm" id="densitySeg">
+              <button type="button" data-density-val="comfortable" data-i18n="densityComfort">Nyaman</button>
+              <button type="button" data-density-val="compact" data-i18n="densityCompact">Padat</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span class="set-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16m0 0-4-4m4 4 4-4"/><path d="M17 20V4m0 0 4 4m-4-4-4 4"/></svg></span>
+            <span class="set-label" data-i18n="setSort">Urutan bawaan</span>
+            <select id="setSort" class="set-select">
+              <option value="new" data-i18n="sortNew">Terbaru Ditambah</option>
+              <option value="rating" data-i18n="sortRating">Rating Tertinggi</option>
+              <option value="title" data-i18n="sortTitle">Judul A–Z</option>
+              <option value="year" data-i18n="sortYear">Tahun Terbaru</option>
+            </select>
+          </div>
+          <div class="set-row">
+            <span class="set-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m6 7 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M10 11v6M14 11v6"/></svg></span>
+            <span class="set-label" data-i18n="setConfirmDelete">Konfirmasi sebelum hapus</span>
+            <label class="switch">
+              <input type="checkbox" id="confirmDeleteToggle" checked />
+              <span class="track"></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- Tentang -->
+        <section class="acct-card acct-about">
+          <div class="about-name">Flixky</div>
+          <p class="acct-text" data-i18n="aboutText">
+            Catatan film pribadi — yang sudah ditonton, sedang ditonton, dan yang masih menunggu giliran.
+          </p>
+          <div class="about-ver" data-i18n="aboutVer">Versi 1.2</div>
+        </section>
+      </div>
+
+      <footer data-i18n="footerText">Flixky — dibuat untuk para penikmat film</footer>
+    </div>
+
+    <!-- Tombol tambah melayang -->
+    <button class="fab" id="fab" title="Tambah film" data-i18n-title="fabTitle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+
+    <!-- Navigasi bawah -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-page="home">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10.8 9-7.8 9 7.8"/><path d="M5.5 9.3V20a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.3"/><path d="M9.5 21v-6h5v6"/></svg></span><span class="nav-label" data-i18n="navHome">Beranda</span>
+      </button>
+      <button class="nav-item" data-page="history">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span><span class="nav-label" data-i18n="navHistory">Riwayat</span>
+      </button>
+      <button class="nav-item" data-page="wishlist">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5C7 16.5 3.5 13.2 3.5 9.3 3.5 6.4 5.6 4.5 8.1 4.5c1.6 0 3.1.9 3.9 2.2.8-1.3 2.3-2.2 3.9-2.2 2.5 0 4.6 1.9 4.6 4.8 0 3.9-3.5 7.2-8.5 11.2Z"/></svg></span><span class="nav-label" data-i18n="navWishlist">Wishlist</span>
+      </button>
+      <button class="nav-item" data-page="account">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.8"/><path d="M4.8 20.2c1.3-3.5 4-5.2 7.2-5.2s5.9 1.7 7.2 5.2"/></svg></span><span class="nav-label" data-i18n="navAccount">Akun</span>
+      </button>
+    </nav>
+
+    <!-- Modal formulir tambah/edit -->
+    <div class="modal-backdrop" id="formModal" style="display: none">
+      <div class="modal-card">
+        <button class="modal-close" data-close="formModal">✕</button>
+        <form id="form">
+          <div class="form-title" id="formTitle">Tambah ke Koleksi</div>
+          <div>
+            <label data-i18n="lblTitle">Judul Film *</label>
+            <input id="fTitle" required placeholder="cth: Parasite" data-i18n-ph="phTitle" />
+          </div>
+          <div class="two">
+            <div>
+              <label data-i18n="lblYear">Tahun</label>
+              <input
+                id="fYear"
+                type="number"
+                min="1900"
+                max="2100"
+                placeholder="2019"
+              />
+            </div>
+            <div>
+              <label data-i18n="lblGenre">Genre</label>
+              <input id="fGenre" list="genreList" placeholder="Thriller" autocomplete="off" />
+              <datalist id="genreList"></datalist>
+            </div>
+          </div>
+          <div>
+            <label data-i18n="lblStatus">Status</label>
+            <select id="fStatus">
+              <option value="watched" data-i18n="optWatched">Sudah ditonton</option>
+              <option value="watching" data-i18n="optWatching">Sedang ditonton</option>
+              <option value="want" data-i18n="optWant">Mau ditonton</option>
+            </select>
+          </div>
+          <div id="dateWrap">
+            <label data-i18n="lblDate">Tanggal Ditonton</label>
+            <input id="fDate" type="date" />
+          </div>
+          <div>
+            <label data-i18n="lblRating">Rating Kamu</label>
+            <div class="stars" id="fStars"></div>
+          </div>
+          <div>
+            <label data-i18n="lblPoster">URL Poster (opsional)</label>
+            <div class="poster-field">
+              <input id="fPoster" placeholder="https://...jpg" />
+              <div class="poster-preview" id="posterPreview">
+                <span class="pp-icon" id="ppIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+                <span id="ppInitials" style="display: none"></span>
+                <img id="ppImg" alt="" style="display: none" />
+              </div>
+            </div>
+            <p class="poster-hint" id="posterHint" style="display: none" data-i18n="posterPreviewError">Gambar tidak bisa dimuat — periksa lagi URL-nya ya.</p>
+          </div>
+          <div>
+            <label data-i18n="lblSynopsis">Sinopsis (opsional)</label>
+            <textarea
+              id="fSynopsis"
+              rows="4"
+              placeholder="Ringkasan cerita filmnya... (muncul pas kartu film diklik)"
+              data-i18n-ph="phSynopsis"
+            ></textarea>
+          </div>
+          <div>
+            <label data-i18n="lblNote">Catatan Pribadi (opsional)</label>
+            <textarea
+              id="fNote"
+              rows="2"
+              placeholder="Kesan singkat, nonton sama siapa, adegan favorit..."
+              data-i18n-ph="phNote"
+            ></textarea>
+          </div>
+          <div class="row">
+            <button type="submit" class="btn-main" id="btnSubmit">
+              + Tambah Film
+            </button>
+            <button type="button" class="btn-ghost" data-close="formModal" data-i18n="btnCancel">
+              Batal
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal detail film -->
+    <div class="modal-backdrop" id="detailModal" style="display: none">
+      <div class="modal-card detail">
+        <button class="modal-close" data-close="detailModal">✕</button>
+        <div class="detail-poster" id="dPoster"></div>
+        <div class="detail-body">
+          <h3 id="dTitle"></h3>
+          <div class="meta" id="dMeta"></div>
+          <span class="badge" id="dBadge"></span>
+          <div class="rating" id="dRating"></div>
+          <div class="detail-label" id="dDateLabel" style="display: none" data-i18n="lblDate">Tanggal Ditonton</div>
+          <p class="detail-text" id="dDate" style="display: none"></p>
+          <div class="detail-label" data-i18n="lblSynopsisDetail">Sinopsis</div>
+          <p class="detail-text" id="dSynopsis"></p>
+          <div class="detail-label" data-i18n="lblNoteDetail">Catatan Pribadi</div>
+          <p class="detail-text" id="dNote"></p>
+          <!-- Tombol cepat ganti status (diisi lewat script sesuai status film) -->
+          <div class="row" id="dStatusRow"></div>
+          <div class="row">
+            <button class="btn-main btn-with-icon" id="dEdit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              <span data-i18n="btnEdit">Edit</span>
+            </button>
+            <button class="btn-del-big btn-with-icon" id="dDelete">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m6 7 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M10 11v6M14 11v6"/></svg>
+              <span data-i18n="btnDelete">Hapus</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog custom: pengganti dialog bawaan browser -->
+    <div class="modal-backdrop dlg-backdrop" id="dlgBackdrop" style="display: none">
+      <div class="modal-card dlg-card">
+        <p class="dlg-msg" id="dlgMsg"></p>
+        <div class="dlg-actions" id="dlgActions"></div>
+      </div>
+    </div>
+
+    <!-- Toast: pesan info / sukses / error -->
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
